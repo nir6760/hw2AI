@@ -24,20 +24,23 @@ class SearchAlgos:
 
     def search(self, state, depth, maximizing_player, start, time_limit):
         pass
-    #Interruptible algorithem, if time finished return the current best move
-    #else go a little bit deepther
+
+    # Interruptible algorithem, if time finished return the current best move
+    # else go a little bit deepther
     def interruptible(self, state, time_limit):
         start = time.time()
         depth = 1
-        move = self.search(state, depth, state.player1_play, start, time_limit)
+        try:
+            move = self.search(state, depth, state.player1_play, start, time_limit)
+        except RuntimeError:
+            raise RuntimeError('Not enough time to find a move even for depth 1')
         while True:
             depth = depth + 1
-            result = self.search(state, depth, state.player1_play, start, time_limit)
-            if result == "Interrupted":
-                #self.perform_move()
+            try:
+                result = self.search(state, depth, state.player1_play, start, time_limit)
+            except RuntimeError:
                 return move
-            else:
-                move = result
+            move = result
 
 
 class MiniMax(SearchAlgos):
@@ -52,20 +55,32 @@ class MiniMax(SearchAlgos):
 
         # TODO: erase the following line and implement this function.
         if time.time() - start > time_limit - self.time_to_finish:
-            return "Interrupted"
+            raise RuntimeError('Timeout')
+
         if self.goal(state) or depth == 0:
             return self.utility(state), None
+
         children = self.succ(state)
-        if maximizing_player:
+        if maximizing_player:  # player1 turn
             curr_max = -float('inf')
+            curr_max_move = None
             for suc_dir in children:
-                val = self.search(suc_dir[0], depth - 1, not maximizing_player, start, time_limit)
-                curr_max = max(val[0], curr_max)
-            return curr_max, suc_dir[1]
-        else:
+                try:
+                    val = self.search(suc_dir[0], depth - 1, not maximizing_player, start, time_limit)
+                except RuntimeError:
+                    raise RuntimeError('Timeout')
+                # curr_max = max(val[0], curr_max)
+                if curr_max < val[0]:
+                    curr_max = val[0]
+                    curr_max_move = suc_dir[1]
+            return curr_max, curr_max_move
+        else:  # player2 turn
             curr_min = float('inf')
             for suc_dir in children:
-                val = self.search(suc_dir[0], depth - 1, not maximizing_player, start, time_limit)
+                try:
+                    val = self.search(suc_dir[0], depth - 1, not maximizing_player, start, time_limit)
+                except RuntimeError:
+                    raise RuntimeError('Timeout')
                 curr_min = min(val[0], curr_min)
             return curr_min, None
 

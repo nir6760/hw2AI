@@ -76,9 +76,7 @@ class Player(AbstractPlayer):
         No output is expected.
         """
         # TODO:
-        self.board = board
-        print(self.board[0])
-        print(self.board[0][0])
+        self.board = np.copy(board)
         self.little_edge = min(np.size(self.board, 0), np.size(self.board, 1))
         self.pos_players = self.findPos()
 
@@ -92,7 +90,7 @@ class Player(AbstractPlayer):
         # TODO:
 
         move_direction = self.strategy.interruptible(
-            State(self.board, True, players_score, self.num_of_turns, self.fruits_on_board, self.pos_players),
+            State(np.copy(self.board), True, players_score, self.num_of_turns, self.fruits_on_board, self.pos_players),
             time_limit)[1]
         # preform move
         self.perform_move(move_direction)
@@ -106,7 +104,9 @@ class Player(AbstractPlayer):
         No output is expected
         """
         # TODO:
-        self.board[pos] = -1
+        self.board[pos] = 2
+        self.board[self.pos_players[1]] = 2
+        self.pos_players = (self.pos_players[0], pos)
         self.num_of_turns = (self.num_of_turns[0], self.num_of_turns[1] + 1)
 
     def update_fruits(self, fruits_on_board_dict):
@@ -135,12 +135,12 @@ class Player(AbstractPlayer):
     @staticmethod
     def fruitsDictAfterMove(fruits_on_board, pos):
         fruits_pos_val = fruits_on_board.copy()
-        fruits_pos_val.pop(pos, 0) # default value for pop without exception
+        fruits_pos_val.pop(pos, 0)  # default value for pop without exception
         return fruits_pos_val
 
-        # find the position of the players in this current state , return tuple
-        # tuple [0]- player1 (player which his position represents by 1)
-        # tuple [1]- player1 (player which his position represents by 1)
+    # find the position of the players in this current state , return tuple
+    # tuple [0]- player1 (player which his position represents by 1)
+    # tuple [1]- player1 (player which his position represents by 1)
 
     def findPos(self):
         pos1, pos2 = None, None
@@ -177,9 +177,10 @@ class Player(AbstractPlayer):
                     succ_players_score = state.players_score[0], \
                                          state.players_score[1] + state.fruits_on_board_dict.get(new_pos, 0)
                     succ_num_of_turns = state.num_of_turns[0], \
-                                         state.num_of_turns[1] + 1
+                                        state.num_of_turns[1] + 1
                 succ_board = np.copy(state.board)
-                succ_board[curr_player_pos] = -1
+
+                succ_board[curr_player_pos] = -1  # perform move on succ_state board
                 succ_board[new_pos] = 1 if player1_play else 2
 
                 succ_fruits_on_board_dict = {}
@@ -200,20 +201,41 @@ class Player(AbstractPlayer):
     def utility(self, state):
         score_diff = (state.players_score[0] - state.players_score[1])
         if self.goal(state):
-            res = score_diff * float('inf')
-            if res is None:
-                return 0
+            res = 0 if score_diff == 0 else score_diff * float('inf')
             return res
-        fruits = dict([(key, value) for key, value in state.fruits_on_board_dict if
+        """
+        # fruits relevant, fruits player1 can reach before they disappear
+        fruits_relevant_player1 = dict([(key, value) for key, value in state.fruits_on_board_dict.items() if
                        State.manhattan(state.pos_players[0], key) <= self.little_edge - state.num_of_turns[0]])
-        max_val = max(fruits.values()) if len(fruits) != 0 else 1
-        fruit_factor = max(1 / State.manhattan(state.pos_players[0], x[0]) + x[1] / max_val for x in fruits)
+        # max val of the relevant fruits , e.g the fruit with biggest value player1 can reach for
+        max_val = max(fruits_relevant_player1.values()) if bool(fruits_relevant_player1) else 1
+        fruit_factor = max(
+            (1 / State.manhattan(state.pos_players[0], key) + val / max_val) for key, val in fruits_relevant.items()) \
+            if bool(fruits_relevant_player1) else 0  # if there are no fruits this factor is zero
         score_factor = score_diff / max_val
         option = State.opCount(state.board, state.pos_players[0]), State.opCount(state.board, state.pos_players[0])
         directions_fact = (option[0] - option[1]) * self.penalty_score / max_val
         return fruit_factor + score_factor + directions_fact
+        """
+        # fruits relevant, fruits player1 can reach before they disappear
+        fruits_relevant_player1 = dict([(key, value) for key, value in state.fruits_on_board_dict.items() if
+                                        State.manhattan(state.pos_players[0], key) <= self.little_edge -
+                                        state.num_of_turns[0]])
+        # max val of fruit or 1 if none, normalized factor
+        max_val_total = max(state.fruits_on_board_dict.values()) if bool(state.fruits_on_board_dict) else 1
+        fruit_factor = max(
+            ((1 / State.manhattan(state.pos_players[0], key)) * val / max_val_total) for key, val in
+            fruits_relevant_player1.items()) \
+            if bool(fruits_relevant_player1) else 0  # if there are no fruits this factor is zero
+        score_factor = score_diff / max_val_total
+        option = State.opCount(state.board, state.pos_players[0]), State.opCount(state.board, state.pos_players[1])
+        # directions_factor = (option[0] - option[1]) * self.penalty_score / max_val_total
+        return fruit_factor + score_factor
 
-    # perform move to given direction
+        # perform move to given direction
+
     def perform_move(self, direc):
-        self.board[self.pos_players[0]] = 1
-        self.board[self.pos_players[0][0] + direc[0]][self.pos_players[0][1] + direc[1]] = 1
+        self.board[self.pos_players[0]] = -1
+        player1_new_pos = (self.pos_players[0][0] + direc[0], self.pos_players[0][1] + direc[1])
+        self.pos_players = (player1_new_pos, self.pos_players[1])
+        self.board[player1_new_pos] = 1
