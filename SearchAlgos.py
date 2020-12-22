@@ -83,7 +83,7 @@ class MiniMax(SearchAlgos):
                     raise RuntimeError('Timeout')
                 curr_min = min(val[0], curr_min)
             return curr_min, None
-
+#d
 
 class AlphaBeta(SearchAlgos):
 
