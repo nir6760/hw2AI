@@ -75,10 +75,7 @@ class Player(AbstractPlayer):
         """
         # TODO: erase the following line and implement this function. In case you choose not to use this function,
         # use 'pass' instead of the following line.
-        if self.num_of_turns[0] == 0:
-            self.fruits_on_board = fruits_on_board_dict
-        if self.num_of_turns[0] >= self.little_edge:  # we need to update it only once, when they disappear
-            self.fruits_on_board = fruits_on_board_dict
+        self.fruits_on_board = fruits_on_board_dict
 
     ########## helper functions in class ##########
     # TODO: add here helper functions in class, if needed
@@ -163,6 +160,29 @@ class Player(AbstractPlayer):
             return True
         return False
 
+    #bfs to search a fruit near my position, replica of board
+    @staticmethod
+    def searchForFruit(board , my_pos, depth=0, max_depth=8):
+        queue = [my_pos]
+        while queue:
+            curr_pos = queue.pop(0)
+            for d in utils.get_directions():
+                i = curr_pos[0] + d[0]
+                j = curr_pos[1] + d[1]
+                if 0 <= i < np.size(board, 0) and 0 <= j < np.size(board, 1) and (
+                        board[i][j] not in [-1, 1, 2, -3]):  # then move is legal
+                    new_pos = (i, j)
+                    if board[new_pos] >= 100:
+                        return 100
+                    if board[new_pos] > 50:
+                        return 20
+                    depth += 1
+                    if depth > max_depth:
+                        return -100
+                    queue.append(new_pos)
+                    board[new_pos] = -3
+        return 0
+
     # calculate heuristic function of state as we explained in the dry part
     def utility(self, state):
         score_diff = (state.players_score[0] - state.players_score[1])
@@ -184,6 +204,9 @@ class Player(AbstractPlayer):
         directions_factor = (option[0] - option[1]) * self.penalty_score / max_val_total
         # fruit_factor2 = 1/min(State.manhattan(state.pos_players[0], key) for key in
         #    fruits_relevant_player1.keys()) if bool(fruits_relevant_player1) else 0
+        fruit_factor3 = 0
+        if bool(fruits_relevant_player1):
+            fruit_factor3 = self.searchForFruit(state.board.copy(), state.pos_players[0],0,self.little_edge - self.num_of_turns[0]) / max_val_total
         return fruit_factor + score_factor# + directions_factor
 
         # perform move to given direction

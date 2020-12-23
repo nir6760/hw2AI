@@ -42,7 +42,7 @@ class Player(AbstractPlayer):
             - direction: tuple, specifing the Player's movement, chosen from self.directions
         """
         # TODO: erase the following line and implement this function.
-        depth = 3  # this is changing depand on expriment
+        depth = 5  # this is changing depand on expriment
         player1_turn = True
         move_direction = self.strategy.search(
             State(np.copy(self.board), player1_turn, players_score, self.num_of_turns, self.fruits_on_board.copy(),
@@ -74,10 +74,7 @@ class Player(AbstractPlayer):
         """
         # TODO: erase the following line and implement this function. In case you choose not to use this function,
         # use 'pass' instead of the following line.
-        if self.num_of_turns[0] == 0:
-            self.fruits_on_board = fruits_on_board_dict
-        if self.num_of_turns[0] >= self.little_edge:  # we need to update it only once, when they disappear
-            self.fruits_on_board = fruits_on_board_dict
+        self.fruits_on_board = fruits_on_board_dict
 
     ########## helper functions in class ##########
     # TODO: add here helper functions in class, if needed
@@ -165,7 +162,10 @@ class Player(AbstractPlayer):
 
     # calculate heuristic function of state as we explained in the dry part
     def utility(self, state):  # todo: fix utility
-        return state.players_score
+        score_diff = state.players_score[0] - state.players_score[1]
+        if self.goal(state):
+            return score_diff * 1000
+        return score_diff
 
 
     # perform move to given direction by player
