@@ -2,6 +2,7 @@
 """
 from utils import ALPHA_VALUE_INIT, BETA_VALUE_INIT
 # TODO: you can import more modules, if needed
+import numpy as np
 
 import time
 
@@ -20,24 +21,27 @@ class SearchAlgos:
         self.succ = succ  # should yield list of tuples [(succ1, dir1),...]
         self.perform_move = perform_move
         self.goal = goal
+        self.start = time.time()
+        self.time_limit = np.inf
         self.time_to_finish = 0.05
 
-    def search(self, state, depth, maximizing_player, start, time_limit):
+    def search(self, state, depth, maximizing_player):
         pass
 
     # Interruptible algorithem, if time finished return the current best move
     # else go a little bit deepther
     def interruptible(self, state, time_limit):
-        start = time.time()
+        self.start = time.time()
+        self.time_limit = time_limit
         depth = 1
         try:
-            move = self.search(state, depth, state.player1_play, start, time_limit)
+            move = self.search(state, depth, True)
         except RuntimeError:
             raise RuntimeError('Not enough time to find a move even for depth 1')
         while True:
             depth = depth + 1
             try:
-                result = self.search(state, depth, state.player1_play, start, time_limit)
+                result = self.search(state, depth, True)
             except RuntimeError:
                 return move
             move = result
@@ -45,7 +49,7 @@ class SearchAlgos:
 
 class MiniMax(SearchAlgos):
 
-    def search(self, state, depth, maximizing_player, start=time.time(), time_limit=float('inf')):
+    def search(self, state, depth, maximizing_player):
         """Start the MiniMax algorithm.
         :param state: The state to start from.
         :param depth: The maximum allowed depth for the algorithm.
@@ -54,40 +58,56 @@ class MiniMax(SearchAlgos):
         """
 
         # TODO: erase the following line and implement this function.
-        if time.time() - start > time_limit - self.time_to_finish:
+
+        def recursive_minmax(state_r, depth_r, maximizing_player_r):
+            if time.time() - self.start > self.time_limit - self.time_to_finish:
+                raise RuntimeError('Timeout')
+            if self.goal(state_r) or depth_r == 0:
+                return self.utility(state_r)
+            children = self.succ(state_r)
+            if maximizing_player_r:  # player1 turn
+                curr_max = -np.inf
+                for succ in children:
+                    try:
+                        val = recursive_minmax(succ, depth_r - 1, False)
+                    except RuntimeError:
+                        raise RuntimeError('Timeout')
+                    curr_max = max(val, curr_max)
+                    # if curr_max < val[0]:
+                    #    curr_max = val[0]
+                    #    curr_max_move = suc_dir[1]
+                return curr_max
+            else:  # player2 turn
+                curr_min = np.inf
+                for succ in children:
+                    try:
+                        val = recursive_minmax(succ, depth_r - 1, True)
+                    except RuntimeError:
+                        raise RuntimeError('Timeout')
+                    curr_min = min(val, curr_min)
+                return curr_min
+
+        # start the minimax algo with move
+        if time.time() - self.start > self.time_limit - self.time_to_finish:
             raise RuntimeError('Timeout')
+        curr_maxx = -np.inf
+        best_move = None
+        children_move = self.perform_move(state)
+        for child in children_move:
+            try:
+                val = recursive_minmax(child[0], depth - 1, False)
+            except RuntimeError:
+                raise RuntimeError('Timeout')
+            if val > curr_maxx:
+                curr_maxx = val
+                best_move = child[1]
+        return curr_maxx, best_move
 
-        if self.goal(state) or depth == 0:
-            return self.utility(state), None
-
-        children = self.succ(state)
-        if maximizing_player:  # player1 turn
-            curr_max = -float('inf')
-            curr_max_move = None
-            for suc_dir in children:
-                try:
-                    val = self.search(suc_dir[0], depth - 1, not maximizing_player, start, time_limit)
-                except RuntimeError:
-                    raise RuntimeError('Timeout')
-                # curr_max = max(val[0], curr_max)
-                if curr_max < val[0]:
-                    curr_max = val[0]
-                    curr_max_move = suc_dir[1]
-            return curr_max, curr_max_move
-        else:  # player2 turn
-            curr_min = float('inf')
-            for suc_dir in children:
-                try:
-                    val = self.search(suc_dir[0], depth - 1, not maximizing_player, start, time_limit)
-                except RuntimeError:
-                    raise RuntimeError('Timeout')
-                curr_min = min(val[0], curr_min)
-            return curr_min, None
-#d
 
 class AlphaBeta(SearchAlgos):
 
-    def search(self, state, depth, maximizing_player, alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
+    def search(self, state, depth, maximizing_player, start=time.time(), time_limit=np.inf,
+               alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
         """Start the AlphaBeta algorithm.
         :param state: The state to start from.
         :param depth: The maximum allowed depth for the algorithm.
@@ -97,4 +117,48 @@ class AlphaBeta(SearchAlgos):
         :return: A tuple: (The min max algorithm value, The direction in case of max node or None in min mode)
         """
         # TODO: erase the following line and implement this function.
-        raise NotImplementedError
+        def recursive_AlphaBeta(state_r, depth_r, maximizing_player_r, alpha_r, beta_r):
+            if time.time() - self.start > self.time_limit - self.time_to_finish:
+                raise RuntimeError('Timeout')
+            if self.goal(state_r) or depth_r == 0:
+                return self.utility(state_r)
+            children = self.succ(state_r)
+            if maximizing_player_r:  # player1 turn
+                curr_max = -np.inf
+                for succ in children:
+                    try:
+                        val = recursive_AlphaBeta(succ, depth_r - 1, False, alpha_r, beta_r)
+                    except RuntimeError:
+                        raise RuntimeError('Timeout')
+                    curr_max = max(val, curr_max)
+                    alpha_r = max(curr_max, alpha_r)
+                    if curr_max >= beta_r: return  np.inf
+                return curr_max
+            else:  # player2 turn
+                curr_min = np.inf
+                for succ in children:
+                    try:
+                        val = recursive_AlphaBeta(succ, depth_r - 1, True, alpha_r, beta_r)
+                    except RuntimeError:
+                        raise RuntimeError('Timeout')
+                    curr_min = min(val, curr_min)
+                    beta_r = min(curr_min, beta_r)
+                    if curr_min <= alpha_r: return  -np.inf
+                return curr_min
+
+        # start the minimax algo with move, maximizing first
+        if time.time() - self.start > self.time_limit - self.time_to_finish:
+            raise RuntimeError('Timeout')
+        curr_maxx = -np.inf
+        best_move = None
+        children_move = self.perform_move(state)
+        for child in children_move:
+            try:
+                val = recursive_AlphaBeta(child[0], depth - 1, False, alpha, beta)
+            except RuntimeError:
+                raise RuntimeError('Timeout')
+            if val > curr_maxx:
+                alpha = val
+                curr_maxx = val
+                best_move = child[1]
+        return curr_maxx, best_move

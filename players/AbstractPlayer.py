@@ -3,6 +3,7 @@ Your players classes must inherit from this.
 """
 import utils
 
+
 class AbstractPlayer:
     """Your player must inherit from this class.
     Your player class name must be 'Player', as in the given examples (SimplePlayer, LivePlayer).
@@ -58,3 +59,4 @@ class AbstractPlayer:
         No output is expected.
         """
         raise NotImplementedError
+
