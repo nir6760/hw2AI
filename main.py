@@ -5,7 +5,7 @@ import utils
 
 if __name__ == "__main__":
     players_options = [x+'Player' for x in ['Live', 'Simple', 'Minimax', 'Alphabeta', 'GlobalTimeAB', 'LightAB',
-                                            'HeavyAB', 'Compete']]
+                                            'HeavyAB', 'Compete', 'Global2']]
 
     parser = argparse.ArgumentParser()
     

@@ -25,7 +25,7 @@ class Player(AbstractPlayer):
         self.little_edge = 0
 
         self.time = game_time  # niv
-        alpha_fact = 2
+        alpha_fact = 1
         self.alpha_fact = alpha_fact
         self.fruit_avaliable = True
         self.extra_time = 0
@@ -182,33 +182,33 @@ class Player(AbstractPlayer):
     # TODO: add here the utility, succ, and perform_move functions used in AlphaBeta algorithm
 
     # calculate heuristic function of state as we explained in the dry part
+    # calculate heuristic function of state as we explained in the dry part
     def utility(self, state):
         option = utils.State.opCount(state.board, state.pos_players[0]), utils.State.opCount(state.board,
-                                                                                              state.pos_players[1])
+                                                                                             state.pos_players[1])
+        score_diff = (state.players_score[0] - state.players_score[1])
+        if utils.State.goal(state):
+            if option[0] == -1:  # my player cant move, im loser
+                score_diff -= self.penalty_score
+            if option[1] == -1:  # rival player cant move, im winner
+                score_diff += self.penalty_score
+            if score_diff == 0:
+                return 0
+            res = score_diff * np.inf
+            return res
+
         player = 0 if state.player1_play else 1
         cond = state.num_of_turns[player] <= self.little_edge and bool(state.fruits_on_board_dict)
         # max val of fruit or 1 if none, normalized factor
         max_val_total = 1
         if cond:
             max_val_total = max(state.fruits_on_board_dict.values())
-        my_option_factor = (4 - option[0]) * 2 * self.penalty_score / max_val_total
-        score_diff = (state.players_score[0] - state.players_score[1])
-        if utils.State.goal(state):
-            if option[0] == -1:  # my player cant move, rival stuck
-                score_diff -= self.penalty_score
-            if option[1] == -1:  # rival player cant move, Im stuck
-                score_diff += self.penalty_score
-            if score_diff == 0:
-                return 0
-            if score_diff < 0:
-                return my_option_factor
-            res = score_diff * np.inf
-            return res
-
         score_factor = score_diff * 10 / max_val_total
+        my_option_factor = (4 - option[0]) * self.penalty_score / max_val_total
         rival_option_factor = utils.State.searchForBlock(state.board, state.pos_players[1], 0, 10) * 10
         fruit_factor = 0
         if cond:
             fruit_factor = utils.State.searchForFruit(state.board.copy(), state.pos_players[0], 0,
                                                       self.little_edge - state.num_of_turns[0]) / max_val_total
+
         return fruit_factor + score_factor + my_option_factor - rival_option_factor

@@ -3,20 +3,23 @@ MiniMax Player with AlphaBeta pruning with heavy heuristic
 """
 from players.AbstractPlayer import AbstractPlayer
 
-
 # TODO: you can import more modules, if needed
 import numpy as np
 import SearchAlgos as sa
 import utils
-from utils import State
+
+
+# from utils import State
 
 class Player(AbstractPlayer):
     def __init__(self, game_time, penalty_score):
-        AbstractPlayer.__init__(self, game_time, penalty_score)  # keep the inheritance of the parent's (AbstractPlayer) __init__()
+        AbstractPlayer.__init__(self, game_time,
+                                penalty_score)  # keep the inheritance of the parent's (AbstractPlayer) __init__()
         # TODO: initialize more fields, if needed, and the AlphaBeta algorithm from SearchAlgos.py
         self.board = None  # player1 is my player
         self.pos_players = None  # tuple [0]-player1 pos, [1] -player2 pos
-        self.strategy = sa.AlphaBeta(utility=self.utility, succ=self.succ, perform_move=self.perform_move, goal=self.goal)
+        self.strategy = sa.AlphaBeta(utility=self.utility, succ=utils.State.succ, retriveLast=utils.State.retriveLast,
+                                     goal=utils.State.goal)
         self.num_of_turns = (0, 0)  # tuple [0]-player1 turns, [1] -player2 turns
         self.fruits_on_board = None
         self.little_edge = 0
@@ -34,7 +37,6 @@ class Player(AbstractPlayer):
         self.little_edge = min(np.size(self.board, 0), np.size(self.board, 1))
         self.pos_players = self.findPos
 
-
     def make_move(self, time_limit, players_score):
         """Make move with this Player.
         input:
@@ -43,12 +45,16 @@ class Player(AbstractPlayer):
             - direction: tuple, specifing the Player's movement, chosen from self.directions
         """
         # TODO: erase the following line and implement this function.
-        depth = 3  # this is changing depand on expriment
+        depth = 2  # this is changing depand on expriment
         player1_turn = True
         move_direction = self.strategy.search(
-            State(np.copy(self.board), player1_turn, players_score, self.num_of_turns, self.fruits_on_board.copy(),
-                  self.pos_players),
+            utils.State(np.copy(self.board), player1_turn, players_score, self.num_of_turns,
+                        self.fruits_on_board.copy(),
+                        self.pos_players),
             depth, True)[1]
+
+        if move_direction is None:
+            move_direction = utils.State.firstLegal(self.board, self.pos_players[0])
         # preform move
         my_player_pos = self.pos_players[0]
         my_player_new_pos = (my_player_pos[0] + move_direction[0], my_player_pos[1] + move_direction[1])
@@ -92,6 +98,7 @@ class Player(AbstractPlayer):
                 if self.board[row][col] == 2:
                     pos2 = row, col
         return pos1, pos2
+
     # perform move to given direction by player
     def perform_move_on_selfPlayer(self, my_turn, new_pos):
         # board
@@ -116,124 +123,35 @@ class Player(AbstractPlayer):
 
     ########## helper functions for MiniMax algorithm ##########
     # TODO: add here the utility, succ, and perform_move functions used in MiniMax algorithm
-    # returnes successor of state
-    def succ(self, state):
-        player1_play = state.player1_play
-        curr_player_pos = state.pos_players[0] if player1_play else state.pos_players[1]
-        curr_player_num_of_turns = state.num_of_turns[0] if player1_play else state.num_of_turns[1]
-        for d in utils.get_directions():
-            i = curr_player_pos[0] + d[0]
-            j = curr_player_pos[1] + d[1]
-
-            if 0 <= i < np.size(state.board, 0) and 0 <= j < np.size(state.board, 1) and (
-                    state.board[i][j] not in [-1, 1, 2]):  # then move is legal
-                new_pos = (i, j)
-                if player1_play:  # this state is player1 turn
-                    succ_pos_players = (new_pos, state.pos_players[1])
-                    succ_players_score = state.players_score[0] + state.fruits_on_board_dict.get(new_pos, 0), \
-                                         state.players_score[1]
-                    succ_num_of_turns = state.num_of_turns[0] + 1, \
-                                        state.num_of_turns[1]
-                else:  # this state is player2 turn
-                    succ_pos_players = (state.pos_players[0], new_pos)
-                    succ_players_score = state.players_score[0], \
-                                         state.players_score[1] + state.fruits_on_board_dict.get(new_pos, 0)
-                    succ_num_of_turns = state.num_of_turns[0], \
-                                        state.num_of_turns[1] + 1
-                succ_board = np.copy(state.board)
-
-                succ_board[curr_player_pos] = -1  # perform move on succ_state board
-                succ_board[new_pos] = 1 if player1_play else 2
-
-                succ_fruits_on_board_dict = {}
-                if curr_player_num_of_turns <= self.little_edge:
-                    succ_fruits_on_board_dict = State.fruitsDictAfterMove(state.fruits_on_board_dict, new_pos) #copy and update dict
-
-                yield State(succ_board, not player1_play, succ_players_score,
-                            succ_num_of_turns, succ_fruits_on_board_dict, succ_pos_players)
-
-    # check if state is in the final states group, means no possible moves for one of the competitors
-    def goal(self, state):
-        if State.opCount(state.board, state.pos_players[0]) == -1 or \
-                State.opCount(state.board, state.pos_players[1]) == -1:
-            return True
-        return False
-    #bfs to search a fruit near my position, replica of board
-    @staticmethod
-    def searchForFruit(board , my_pos, depth=0, max_depth=8):
-        queue = [my_pos]
-        while queue:
-            curr_pos = queue.pop(0)
-            for d in utils.get_directions():
-                i = curr_pos[0] + d[0]
-                j = curr_pos[1] + d[1]
-                if 0 <= i < np.size(board, 0) and 0 <= j < np.size(board, 1) and (
-                        board[i][j] not in [-1, 1, 2, -3]):  # then move is legal
-                    new_pos = (i, j)
-                    if board[new_pos] >= 100:
-                        return 100
-                    if board[new_pos] > 50:
-                        return 20
-                    depth += 1
-                    if depth > max_depth:
-                        return -100
-                    queue.append(new_pos)
-                    board[new_pos] = -3
-        return 0
 
     # calculate heuristic function of state as we explained in the dry part
     def utility(self, state):
-        score_diff = (state.players_score[0] - state.players_score[1])
-        if self.goal(state):
-            res = 0 if score_diff == 0 else score_diff * 10000
-            return res
-        # fruits relevant, fruits player1 can reach before they disappear
-        fruits_relevant_player1 = dict([(key, value) for key, value in state.fruits_on_board_dict.items() if
-                                        State.manhattan(state.pos_players[0], key) <= self.little_edge -
-                                        state.num_of_turns[0]])
+        option = utils.State.opCount(state.board, state.pos_players[0]), utils.State.opCount(state.board,
+                                                                                              state.pos_players[1])
+        player = 0 if state.player1_play else 1
+        cond = state.num_of_turns[player] <= self.little_edge and bool(state.fruits_on_board_dict)
         # max val of fruit or 1 if none, normalized factor
-        max_val_total = max(state.fruits_on_board_dict.values()) if bool(state.fruits_on_board_dict) else 1
-        fruit_factor = max(
-            ((1 / State.manhattan(state.pos_players[0], key)) * val / max_val_total) for key, val in
-            fruits_relevant_player1.items()) \
-            if bool(fruits_relevant_player1) else 0  # if there are no fruits this factor is zero
-        score_factor = score_diff / max_val_total
-        option = State.opCount(state.board, state.pos_players[0]), State.opCount(state.board, state.pos_players[1])
-        directions_factor = (option[0] - option[1]) * self.penalty_score / max_val_total
-        # fruit_factor2 = 1/min(State.manhattan(state.pos_players[0], key) for key in
-        #    fruits_relevant_player1.keys()) if bool(fruits_relevant_player1) else 0
-        fruit_factor3 = 0
-        if bool(fruits_relevant_player1):
-            fruit_factor3 = self.searchForFruit(state.board.copy(), state.pos_players[0],0,self.little_edge - self.num_of_turns[0]) / max_val_total
-        return fruit_factor3 + score_factor + directions_factor
+        max_val_total = 1
+        if cond:
+            max_val_total = max(state.fruits_on_board_dict.values())
+        my_option_factor = (4 - option[0]) * 2 * self.penalty_score / max_val_total
+        score_diff = (state.players_score[0] - state.players_score[1])
+        if utils.State.goal(state):
+            if option[0] == -1:  # my player cant move, rival stuck
+                score_diff -= self.penalty_score
+            if option[1] == -1:  # rival player cant move, Im stuck
+                score_diff += self.penalty_score
+            if score_diff == 0:
+                return 0
+            if score_diff < 0:
+                return my_option_factor
+            res = score_diff * np.inf
+            return res
 
-    # perform move to given direction by player
-    def perform_move(self, state):
-        player1_play = state.player1_play
-        curr_player_pos = state.pos_players[0]
-        curr_player_num_of_turns = state.num_of_turns[0]
-        for d in utils.get_directions():
-            i = curr_player_pos[0] + d[0]
-            j = curr_player_pos[1] + d[1]
-
-            if 0 <= i < np.size(self.board, 0) and 0 <= j < np.size(self.board, 1) and (
-                    state.board[i][j] not in [-1, 1, 2]):  # then move is legal
-                new_pos = (i, j)
-
-                succ_pos_players = (new_pos, state.pos_players[1])
-                succ_players_score = state.players_score[0] + state.fruits_on_board_dict.get(new_pos, 0), \
-                                    state.players_score[1]
-                succ_num_of_turns = state.num_of_turns[0] + 1, \
-                                    state.num_of_turns[1]
-
-
-                succ_board = np.copy(state.board)
-                succ_board[curr_player_pos] = -1  # perform move on succ_state board
-                succ_board[new_pos] = 1
-
-                succ_fruits_on_board_dict = {}
-                if curr_player_num_of_turns <= self.little_edge:
-                    succ_fruits_on_board_dict = State.fruitsDictAfterMove(state.fruits_on_board_dict, new_pos)
-
-                yield State(succ_board, not player1_play, succ_players_score,
-                            succ_num_of_turns, succ_fruits_on_board_dict, succ_pos_players), d
+        score_factor = score_diff * 10 / max_val_total
+        rival_option_factor = utils.State.searchForBlock(state.board, state.pos_players[1], 0, 10) * 10
+        fruit_factor = 0
+        if cond:
+            fruit_factor = utils.State.searchForFruit(state.board.copy(), state.pos_players[0], 0,
+                                                      self.little_edge - state.num_of_turns[0]) / max_val_total
+        return fruit_factor + score_factor + my_option_factor - rival_option_factor

@@ -49,7 +49,7 @@ class Game:
         
         if self.animated:
             self.init_animation()
-        #self.create_fruits()
+        self.create_fruits()
         self.players_positions = [tuple(reversed(position)) for position in self.players_positions]
 
     def init_animation(self):
