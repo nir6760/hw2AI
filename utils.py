@@ -333,12 +333,12 @@ class State:
                             succ_num_of_turns, succ_fruits_on_board_dict, succ_pos_players, succ_last_move_fruit_value), d
 
     # retrieve the state before moving in direction dir, help us so we dont have to copy board and save space and time
+    # opposite operator
     @staticmethod
     def retriveLast(state, dir):
 
         move_by_player1 = not state.player1_play #last move was by player1?
         last_player_current_pos = state.pos_players[0] if move_by_player1 else state.pos_players[1]
-        last_player_num_of_current_turns = state.num_of_turns[0] if move_by_player1 else state.num_of_turns[1]
         last_pos = (last_player_current_pos[0] - dir[0], last_player_current_pos[1] - dir[1])
         if move_by_player1:  # last was state player1 turn
             state.pos_players = (last_pos, state.pos_players[1])
@@ -356,7 +356,7 @@ class State:
             last_fruit = state.last_move_fruit_value[1]
 
             #retriving board
-        state.board[last_player_current_pos] = last_fruit  # unperform move
+        state.board[last_player_current_pos] = last_fruit  # un preform move
         state.board[last_pos] = 1 if move_by_player1 else 2
 
         if last_fruit != 0:

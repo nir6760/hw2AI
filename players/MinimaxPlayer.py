@@ -145,7 +145,7 @@ class Player(AbstractPlayer):
             if score_diff == 0:
                 return 0
             if score_diff < 0:
-                return my_option_factor
+                return -my_option_factor
             res = score_diff * np.inf
             return res
 
