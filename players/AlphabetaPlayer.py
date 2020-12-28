@@ -46,13 +46,13 @@ class Player(AbstractPlayer):
         # TODO:
         player1_turn = True
 
-        move_direction = self.strategy.interruptible(
-            utils.State(np.copy(self.board), player1_turn, players_score, self.num_of_turns,
-                        self.fruits_on_board.copy(),
-                        self.pos_players),
-            time_limit)[1]
-
-        if move_direction is None:
+        try:
+            move_direction = self.strategy.interruptible(
+                utils.State(np.copy(self.board), player1_turn, players_score, self.num_of_turns,
+                            self.fruits_on_board.copy(),
+                            self.pos_players),
+                time_limit)[1]
+        except RuntimeError:  # if we dont have time even to one step minimax
             move_direction = utils.State.firstLegal(self.board, self.pos_players[0])
         # preform move
         my_player_pos = self.pos_players[0]
@@ -127,25 +127,25 @@ class Player(AbstractPlayer):
     # calculate heuristic function of state as we explained in the dry part
     def utility(self, state):
         option = utils.State.opCount(state.board, state.pos_players[0]), utils.State.opCount(state.board,
-                                                                                              state.pos_players[1])
+                                                                                             state.pos_players[1])
         player = 0 if state.player1_play else 1
         cond = state.num_of_turns[player] <= self.little_edge and bool(state.fruits_on_board_dict)
         # max val of fruit or 1 if none, normalized factor
         max_val_total = 1
         if cond:
             max_val_total = max(state.fruits_on_board_dict.values())
-        my_option_factor = (4 - option[0]) * 2 * self.penalty_score / max_val_total
+        my_option_factor = (4 - option[0]) * self.penalty_score / max_val_total if option[0] != 0 else -self.penalty_score / max_val_total
         score_diff = (state.players_score[0] - state.players_score[1])
         if utils.State.goal(state):
-            if option[0] == -1:  # my player cant move, rival stuck
+            if option[0] == 0 and state.player1_play:  # my player cant move, Im stuck
                 score_diff -= self.penalty_score
-            if option[1] == -1:  # rival player cant move, Im stuck
+            else:  # rival player cant move, rival stuck
                 score_diff += self.penalty_score
-            if score_diff == 0:
+            if score_diff == 0:  # tie
                 return 0
-            if score_diff < 0:
-                return -my_option_factor
-            res = score_diff * np.inf
+            if score_diff < 0:  #  I lost
+                return my_option_factor
+            res = score_diff * 10000 * max_val_total
             return res
 
         score_factor = score_diff * 10 / max_val_total
