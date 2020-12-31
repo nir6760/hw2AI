@@ -6,7 +6,9 @@ from players.AbstractPlayer import AbstractPlayer
 import numpy as np
 import SearchAlgos as sa
 import utils
-#from utils import State
+
+
+# from utils import State
 
 
 # AlphaBeta strategy player class
@@ -18,7 +20,7 @@ class Player(AbstractPlayer):
         self.board = None  # player1 is my player
         self.pos_players = None  # tuple [0]-player1 pos, [1] -player2 pos
         self.strategy = sa.AlphaBeta(utility=self.utility, succ=utils.State.succ, retriveLast=utils.State.retriveLast,
-                                   goal=utils.State.goal)
+                                     goal=utils.State.goal)
         self.num_of_turns = (0, 0)  # tuple [0]-player1 turns, [1] -player2 turns
         self.fruits_on_board = None
         self.little_edge = 0
@@ -54,13 +56,14 @@ class Player(AbstractPlayer):
                 time_limit)[1]
         except RuntimeError:  # if we dont have time even to one step minimax
             move_direction = utils.State.firstLegal(self.board, self.pos_players[0])
+        if move_direction is None:
+            move_direction = utils.State.firstLegal(self.board, self.pos_players[0])
         # preform move
         my_player_pos = self.pos_players[0]
         my_player_new_pos = (my_player_pos[0] + move_direction[0], my_player_pos[1] + move_direction[1])
         self.perform_move_on_selfPlayer(True, my_player_new_pos)
 
         return move_direction
-
 
     def set_rival_move(self, rival_new_pos):
         """Update your info, given the new position of the rival.
@@ -129,29 +132,36 @@ class Player(AbstractPlayer):
         option = utils.State.opCount(state.board, state.pos_players[0]), utils.State.opCount(state.board,
                                                                                              state.pos_players[1])
         player = 0 if state.player1_play else 1
-        cond = state.num_of_turns[player] <= self.little_edge and bool(state.fruits_on_board_dict)
-        # max val of fruit or 1 if none, normalized factor
-        max_val_total = 1
-        if cond:
-            max_val_total = max(state.fruits_on_board_dict.values())
-        my_option_factor = (4 - option[0]) * self.penalty_score / max_val_total if option[0] != 0 else -self.penalty_score / max_val_total
+        cond = state.num_of_turns[player] <= self.little_edge and state.fruits_on_board_dict != {} #true if there are fruits
         score_diff = (state.players_score[0] - state.players_score[1])
         if utils.State.goal(state):
-            if option[0] == 0 and state.player1_play:  # my player cant move, Im stuck
-                score_diff -= self.penalty_score
-            else:  # rival player cant move, rival stuck
-                score_diff += self.penalty_score
+            if option[0] == 0:  # my player cant move, Im stuck
+                score_diff -= self.penalty_score  # I deserve a penalty
+            if option[1] == 0: # rival player stuck, he stuck
+                    score_diff += self.penalty_score  # we both deserve penalty
             if score_diff == 0:  # tie
                 return 0
-            if score_diff < 0:  #  I lost
-                return my_option_factor
-            res = score_diff * 10000 * max_val_total
+            if score_diff < 0:  # I lost
+                return score_diff
+            res = 10000
             return res
-
-        score_factor = score_diff * 10 / max_val_total
-        rival_option_factor = utils.State.searchForBlock(state.board, state.pos_players[1], 0, 10) * 10
-        fruit_factor = 0
+        my_option_factor = (4 - option[0]) if option[0] != 0 else 0
+        if option[0] == 0:
+            score_diff -= self.penalty_score
+        score_factor = score_diff
+        my_BigOption_factor = utils.State.searchForBlock(state.board, state.pos_players[0], 0, 10) / 100
+        if my_BigOption_factor == 0.1:  # no boundary
+            my_BigOption_factor = 1
+        #rival_BigOption_factor = utils.State.searchForBlock(state.board, state.pos_players[1], 0, 7) / 70
+        #if rival_BigOption_factor == 0.1:  # no boundary
+        #    rival_BigOption_factor = 1
+        #go_to_rival = 2*utils.State.manhattan(state.pos_players[0], state.pos_players[1])/(np.size(self.board, 0)+np.size(self.board, 1))
+        fruit_fac = 0
+        max_fruit = 1
         if cond:
-            fruit_factor = utils.State.searchForFruit(state.board.copy(), state.pos_players[0], 0,
-                                                      self.little_edge - state.num_of_turns[0]) / max_val_total
-        return fruit_factor + score_factor + my_option_factor - rival_option_factor
+            fruit_fac = max(value/utils.State.manhattan(state.pos_players[0], key)
+                               for key, value in state.fruits_on_board_dict.items())
+            max_fruit = max(value for value in state.fruits_on_board_dict.values())
+        fruit_factor = 20 * fruit_fac/max_fruit
+        return my_option_factor + score_factor + fruit_factor + my_BigOption_factor
+

@@ -92,8 +92,7 @@ class MiniMax(SearchAlgos):
 
 class AlphaBeta(SearchAlgos):
 
-    def search(self, state, depth, maximizing_player, start=time.time(), time_limit=np.inf,
-               alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
+    def search(self, state, depth, maximizing_player,alpha=ALPHA_VALUE_INIT, beta=BETA_VALUE_INIT):
         """Start the AlphaBeta algorithm.
         :param state: The state to start from.
         :param depth: The maximum allowed depth for the algorithm.
@@ -121,7 +120,8 @@ class AlphaBeta(SearchAlgos):
                     best_move = succ[1]
                 self.retriveLast(succ[0], succ[1])
                 alpha = max(curr_max, alpha)
-                if curr_max >= beta: return np.inf, None
+                if curr_max >= beta:
+                    return np.inf, None
             return curr_max, best_move
         else:  # player2 turn
             curr_min = np.inf
@@ -133,6 +133,7 @@ class AlphaBeta(SearchAlgos):
                 curr_min = min(val[0], curr_min)
                 self.retriveLast(succ[0], succ[1])
                 beta = min(curr_min, beta)
-                if curr_min <= alpha: return -np.inf, None
+                if curr_min <= alpha:
+                    return -np.inf, None
             return curr_min, None
 

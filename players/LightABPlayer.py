@@ -52,6 +52,8 @@ class Player(AbstractPlayer):
                 depth, True)[1]
         except RuntimeError:  # if we dont have time even to one step minimax
             move_direction = utils.State.firstLegal(self.board, self.pos_players[0])
+        if move_direction is None:
+            move_direction = utils.State.firstLegal(self.board, self.pos_players[0])
         # preform move
         my_player_pos = self.pos_players[0]
         my_player_new_pos = (my_player_pos[0] + move_direction[0], my_player_pos[1] + move_direction[1])
@@ -121,25 +123,31 @@ class Player(AbstractPlayer):
     ########## helper functions for MiniMax algorithm ##########
     # TODO: add here the utility, succ, and perform_move functions used in MiniMax algorithm
 
-    # calculate light heuristic function of state
+    # calculate heuristic function of state as we explained in the dry part
     def utility(self, state):
         option = utils.State.opCount(state.board, state.pos_players[0]), utils.State.opCount(state.board,
                                                                                              state.pos_players[1])
 
-        my_option_factor = (4 - option[0]) * self.penalty_score if option[0] != 0 else -self.penalty_score
         score_diff = (state.players_score[0] - state.players_score[1])
         if utils.State.goal(state):
-            if option[0] == 0 and state.player1_play:  # my player cant move, Im stuck
-                score_diff -= self.penalty_score
-            else:  # rival player cant move, rival stuck
-                score_diff += self.penalty_score
+            if option[0] == 0 and state.player1_play:  # my player cant move,my turn, Im stuck
+                score_diff -= self.penalty_score  # I deserve a penalty
+                if option[1] == 0 and state.num_of_turns[0] < state.num_of_turns[1]:
+                    score_diff += self.penalty_score  # we both deserve penalty
+            else:  # rival player cant move, his turn, rival stuck
+                score_diff += self.penalty_score  # I deserve a penalty
+                if option[0] == 0 and state.num_of_turns[1] < state.num_of_turns[0]:
+                    score_diff -= self.penalty_score  # we both deserve penalty
             if score_diff == 0:  # tie
                 return 0
-            if score_diff < 0:  #  I lost
-                return my_option_factor
-            res = score_diff * 10000
+            if score_diff < 0:  # I lost
+                return score_diff
+            res = 10000
             return res
+        my_option_factor = (4 - option[0]) if option[0] != 0 else 0
+        if option[0] == 0:
+            score_diff -= self.penalty_score
+        score_factor = score_diff
 
-        score_factor = score_diff * 10
+        return my_option_factor + score_factor
 
-        return score_factor + my_option_factor

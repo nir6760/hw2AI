@@ -177,41 +177,54 @@ class State:
 
         if last_fruit != 0:
             state.fruits_on_board_dict[last_player_current_pos] = last_fruit #retrive fruit to dictionary
-
+    '''
     # check if state is in the final states group, means no possible moves for one of the competitors
     @staticmethod
     def goal(state):
         if (state.player1_play and State.opCount(state.board, state.pos_players[0]) == 0) or \
-                (not state.player1_play and State.opCount(state.board, state.pos_players[1]) == 0):
+                (not state.player1_play and State.opCount(state.board, state.pos_players[1]) == 0 ):
+            return True
+        return False
+    '''
+    # check if state is in the final states group, means no possible moves for one of the competitors
+    @staticmethod
+    def goal(state):
+        if (state.num_of_turns[0] == state.num_of_turns[1] and
+                (State.opCount(state.board, state.pos_players[0]) == 0 or
+                State.opCount(state.board, state.pos_players[1]) == 0 )):
             return True
         return False
 
     # bfs to search a fruit near my position, replica of board
     @staticmethod
-    def searchForFruit(board, my_pos, depth=0, max_depth=8):
+    def searchForFruit(board, my_pos, depth=1, max_depth=5):
         queue = [my_pos]
         max_fruit = 0
-        depth += 1
+        reach = 0
+        size = 1
         while queue:
-            curr_pos = queue.pop(0)
-            for d in get_directions():
-                i = curr_pos[0] + d[0]
-                j = curr_pos[1] + d[1]
-                if 0 <= i < np.size(board, 0) and 0 <= j < np.size(board, 1) and (
-                        board[i][j] not in [-1, 1, 2, -3]):  # then move is legal
-                    new_pos = (i, j)
-                    if board[new_pos] >= 2:
-                        max_fruit = max(max_fruit * 10 / depth, board[new_pos])
-                    depth += 1
-                    if depth > max_depth:
-                        return -200
-                    queue.append(new_pos)
-                    board[new_pos] = -3
-        return max_fruit
+            for it in range(size):
+                curr_pos = queue.pop(0)
+                board[curr_pos] = -3
+                for d in get_directions():
+                    i = curr_pos[0] + d[0]
+                    j = curr_pos[1] + d[1]
+                    if 0 <= i < np.size(board, 0) and 0 <= j < np.size(board, 1) and (
+                            board[i][j] not in [-1, 1, 2, -3]):  # then move is legal
+                        new_pos = (i, j)
+                        if board[new_pos] > 2:
+                            max_fruit = max(max_fruit, board[new_pos])
+                            reach = max(max_fruit/depth, reach)
+                        queue.append(new_pos)
+            size = len(queue)
+            depth += 1
+            if depth == max_depth:
+                return reach
+        return reach
 
     # find which square block the player
     @staticmethod
-    def searchForBlock(board, pos, depth=0, max_depth=10):
+    def searchForBlock(board, pos, depth=0, max_depth=5):
         queue = [pos]
         size = 1
         visited = []
